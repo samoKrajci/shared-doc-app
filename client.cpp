@@ -59,7 +59,7 @@ public:
     }
 
     void receive_loop(
-        std::function<void(std::vector<char>, size_t)>* handle_received_message)
+        std::function<void(std::vector<char>, int)>* handle_received_message)
     {
         boost::system::error_code error;
 
@@ -97,125 +97,131 @@ public:
 const std::string Tcp_client::PORT = "6969";
 const size_t Tcp_client::MAX_BUFF_LENGTH = 10000;
 
-void send_loop(Tcp_client* tcp_client)
-{
-    std::string message;
-    for (;;) {
-        std::cin >> message;
-        tcp_client->send_message(message);
+struct Window {
+    Window()
+    {
+        initscr();
+        noecho();
+        cbreak();
+        keypad(stdscr, true);
+        start_color();
+        curs_set(0);
+        init_color_pairs();
     }
-}
 
-void window_loop(Tcp_client* tcp_client)
-{
-    for (;;) {
-        printw("%d", KEY_UP);
-        int ch = getch();
-        std::string message;
+    void init_color_pairs()
+    {
+        init_pair(1, COLOR_BLACK, COLOR_GREEN);
+        init_pair(2, COLOR_BLACK, COLOR_MAGENTA);
+        init_pair(3, COLOR_BLACK, COLOR_YELLOW);
+        init_pair(4, COLOR_BLACK, COLOR_RED);
+        init_pair(5, COLOR_BLACK, COLOR_CYAN);
+    }
 
-        message = "S";
-        switch (ch) {
-        case KEY_UP:
-            message += "U";
-            break;
-        case KEY_DOWN:
-            message += "D";
-            break;
-        case KEY_RIGHT:
-            message += "R";
-            break;
-        case KEY_LEFT:
-            message += "L";
-            break;
-        case '\n':
-            message += "B";
-            break;
-        case KEY_HOME:
-            message += "H";
-            break;
-        case KEY_END:
-            message += "E";
-            break;
-        case KEY_DC:
-            message += "X";
-            break;
-        case KEY_BACKSPACE:
-            message += "A";
-            break;
-        case '\t':
-            message += "T";
-            break;
-        default:
-            message = "W";
-            message += ch;
-            break;
+    chtype get_cursor_attribute(int cursor_id, int my_id)
+    {
+        if (cursor_id == my_id)
+            return A_REVERSE;
+        return COLOR_PAIR((cursor_id % 5) + 1);
+    }
+
+    ~Window() { endwin(); }
+
+    void input_loop(Tcp_client* tcp_client)
+    {
+        for (;;) {
+            printw("%d", KEY_UP);
+            int ch = getch();
+            std::string message;
+
+            message = "S";
+            switch (ch) {
+            case KEY_UP:
+                message += "U";
+                break;
+            case KEY_DOWN:
+                message += "D";
+                break;
+            case KEY_RIGHT:
+                message += "R";
+                break;
+            case KEY_LEFT:
+                message += "L";
+                break;
+            case '\n':
+                message += "B";
+                break;
+            case KEY_HOME:
+                message += "H";
+                break;
+            case KEY_END:
+                message += "E";
+                break;
+            case KEY_DC:
+                message += "X";
+                break;
+            case KEY_BACKSPACE:
+                message += "A";
+                break;
+            case '\t':
+                message += "T";
+                break;
+            default:
+                message = "W";
+                message += ch;
+                break;
+            }
+
+            tcp_client->send_message(message);
+        }
+    }
+
+    void print_document_image(Document::Document_image& document_image, int id)
+    {
+        clear();
+
+        auto closest_cursor = document_image.cursors.begin();
+        bool no_cursors_left = false;
+        for (size_t line_index = 0; line_index < document_image.data.size();
+             ++line_index) {
+            std::string& line = document_image.data.at(line_index);
+            for (size_t col = 0; col < line.size() + 1; ++col) {
+                int index_of_cursor_on_this_place = -1;
+                if (!no_cursors_left)
+                    while ((closest_cursor->line == line_index)
+                        and (closest_cursor->column == col)) {
+                        if (index_of_cursor_on_this_place != id)
+                            index_of_cursor_on_this_place = closest_cursor->id;
+                        if (closest_cursor != document_image.cursors.end())
+                            ++closest_cursor;
+                        else
+                            no_cursors_left = true;
+                    }
+
+                chtype cursor_attribute
+                    = get_cursor_attribute(index_of_cursor_on_this_place, id);
+                attron(cursor_attribute);
+                if (col == line.size())
+                    printw(" ");
+                else
+                    printw("%c", line[col]);
+                attroff(cursor_attribute);
+            }
+            printw("\n");
         }
 
-        tcp_client->send_message(message);
-    }
-}
-
-void init_color_pairs()
-{
-    init_pair(1, COLOR_BLACK, COLOR_GREEN);
-    init_pair(2, COLOR_BLACK, COLOR_MAGENTA);
-    init_pair(3, COLOR_BLACK, COLOR_YELLOW);
-    init_pair(4, COLOR_BLACK, COLOR_RED);
-    init_pair(5, COLOR_BLACK, COLOR_CYAN);
-}
-
-chtype get_cursor_attribute(int cursor_id, int my_id)
-{
-    if (cursor_id == my_id)
-        return A_REVERSE;
-    return COLOR_PAIR((cursor_id % 5) + 1);
-}
-
-void print_document_image(Document::Document_image& document_image, int id)
-{
-    clear();
-
-    auto closest_cursor = document_image.cursors.begin();
-    bool no_cursors_left = false;
-    for (size_t line_index = 0; line_index < document_image.data.size();
-         ++line_index) {
-        std::string& line = document_image.data.at(line_index);
-        for (size_t col = 0; col < line.size() + 1; ++col) {
-            int index_of_cursor_on_this_place = -1;
-            if (!no_cursors_left)
-                while ((closest_cursor->line == line_index)
-                    and (closest_cursor->column == col)) {
-                    if (index_of_cursor_on_this_place != id)
-                        index_of_cursor_on_this_place = closest_cursor->id;
-                    if (closest_cursor != document_image.cursors.end())
-                        ++closest_cursor;
-                    else
-                        no_cursors_left = true;
-                }
-
-            chtype cursor_attribute
-                = get_cursor_attribute(index_of_cursor_on_this_place, id);
-            attron(cursor_attribute);
-            if (col == line.size())
-                printw(" ");
-            else
-                printw("%c", line[col]);
-            attroff(cursor_attribute);
-        }
-        printw("\n");
+        refresh();
     }
 
-    refresh();
-}
+    void printw_buff(std::vector<char> buff, int id)
+    {
+        std::stringstream ss;
+        ss.write(buff.data(), buff.size());
+        Document::Document_image document_image(ss.str());
 
-void printw_buff(std::vector<char> buff, int id)
-{
-    std::stringstream ss;
-    ss.write(buff.data(), buff.size());
-    Document::Document_image document_image(ss.str());
-
-    print_document_image(document_image, id);
-}
+        print_document_image(document_image, id);
+    }
+};
 
 int main(int argc, char* argv[])
 {
@@ -225,21 +231,20 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        initscr();
-        noecho();
-        cbreak();
-        keypad(stdscr, true);
-        start_color();
-        curs_set(0);
-        init_color_pairs();
-
         Tcp_client tcp_client(argv[1]);
-        tcp_client.connect();
+        if (!tcp_client.connect())
+            return 1;
 
-        std::function<void(std::vector<char>, size_t)> f = printw_buff;
+        Window window;
+
+        std::function<void(std::vector<char>, int)> f
+            = [&window](std::vector<char> buff, int id) {
+                  window.printw_buff(buff, id);
+              };
         boost::thread t1(
             boost::bind(&Tcp_client::receive_loop, &tcp_client, &f));
-        boost::thread t2(boost::bind(&window_loop, &tcp_client));
+        boost::thread t2(
+            boost::bind(&Window::input_loop, &window, &tcp_client));
 
         t1.join();
         t2.join();
@@ -247,8 +252,8 @@ int main(int argc, char* argv[])
 
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
+        std::cout << "fail\n";
     }
 
-    endwin();
     return 0;
 }

@@ -59,7 +59,7 @@ public:
     }
 
     void receive_loop(
-        std::function<void(std::vector<char>, int)>* handle_received_message)
+        std::function<void(std::vector<char>, int)>& handle_received_message)
     {
         boost::system::error_code error;
 
@@ -73,7 +73,8 @@ public:
             } else if (error)
                 throw boost::system::system_error(error); // Some other error.
 
-            (*handle_received_message)(buff, id);
+            // (*handle_received_message)(buff, id);
+            handle_received_message(buff, id);
         }
     }
 
@@ -98,7 +99,8 @@ const std::string Tcp_client::PORT = "6969";
 const size_t Tcp_client::MAX_BUFF_LENGTH = 10000;
 
 struct Window {
-    Window()
+    Window(Tcp_client& tcp_client)
+        : tcp_client(tcp_client)
     {
         initscr();
         noecho();
@@ -118,16 +120,9 @@ struct Window {
         init_pair(5, COLOR_BLACK, COLOR_CYAN);
     }
 
-    chtype get_cursor_attribute(int cursor_id, int my_id)
-    {
-        if (cursor_id == my_id)
-            return A_REVERSE;
-        return COLOR_PAIR((cursor_id % 5) + 1);
-    }
-
     ~Window() { endwin(); }
 
-    void input_loop(Tcp_client* tcp_client)
+    void input_loop()
     {
         for (;;) {
             printw("%d", KEY_UP);
@@ -172,7 +167,7 @@ struct Window {
                 break;
             }
 
-            tcp_client->send_message(message);
+            tcp_client.send_message(message);
         }
     }
 
@@ -213,6 +208,13 @@ struct Window {
         refresh();
     }
 
+    chtype get_cursor_attribute(int cursor_id, int my_id)
+    {
+        if (cursor_id == my_id)
+            return A_REVERSE;
+        return COLOR_PAIR((cursor_id % 5) + 1);
+    }
+
     void printw_buff(std::vector<char> buff, int id)
     {
         std::stringstream ss;
@@ -221,6 +223,8 @@ struct Window {
 
         print_document_image(document_image, id);
     }
+
+    Tcp_client& tcp_client;
 };
 
 int main(int argc, char* argv[])
@@ -235,16 +239,15 @@ int main(int argc, char* argv[])
         if (!tcp_client.connect())
             return 1;
 
-        Window window;
+        Window window(tcp_client);
 
         std::function<void(std::vector<char>, int)> f
             = [&window](std::vector<char> buff, int id) {
                   window.printw_buff(buff, id);
               };
         boost::thread t1(
-            boost::bind(&Tcp_client::receive_loop, &tcp_client, &f));
-        boost::thread t2(
-            boost::bind(&Window::input_loop, &window, &tcp_client));
+            boost::bind(&Tcp_client::receive_loop, &tcp_client, f));
+        boost::thread t2(boost::bind(&Window::input_loop, &window));
 
         t1.join();
         t2.join();

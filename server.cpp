@@ -17,7 +17,7 @@ public:
     typedef boost::shared_ptr<Tcp_connection> pointer;
 
     static pointer create(boost::asio::io_context& io_context,
-        Document::Document_handler* dh,
+        Document::Document_handler& dh,
         std::function<void(std::string)> send_all, int id)
     {
         return pointer(new Tcp_connection(io_context, dh, send_all, id));
@@ -31,7 +31,7 @@ public:
         std::cout << "Client connected. Id: " << id << "\n";
 
         // prida cursor do dokumentu
-        dh->add_new_cursor(id);
+        dh.add_new_cursor(id);
 
         // connection je up, da sa posielat
         alive = true;
@@ -70,13 +70,13 @@ public:
 
     ~Tcp_connection()
     {
-        dh->remove_cursor(id);
+        dh.remove_cursor(id);
         std::cout << "destructor called on id:" << id << "\n";
     }
 
 private:
     Tcp_connection(boost::asio::io_context& io_context,
-        Document::Document_handler* dh,
+        Document::Document_handler& dh,
         std::function<void(std::string)> send_all, int id)
         : socket_(io_context)
         , rec_buff_(std::string(DEFAULT_MESSAGE_LENGTH, ' '))
@@ -107,13 +107,13 @@ private:
         //  broadcaste
         bool message_valid = true;
         if (rec_buff_ != "DD")
-            message_valid = dh->process_message(id, rec_buff_);
+            message_valid = dh.process_message(id, rec_buff_);
         // debug vec
-        dh->print();
+        dh.print();
 
         // broadcastni stav dokumentu
         if (message_valid)
-            send_all(dh->serialize());
+            send_all(dh.serialize());
 
         // citaj dalsi message (rekurzivne sa loopuje)
         boost::asio::async_read(socket_,
@@ -134,7 +134,7 @@ private:
 
     tcp::socket socket_;
     std::string send_buff_, rec_buff_;
-    Document::Document_handler* dh;
+    Document::Document_handler& dh;
     std::function<void(std::string)> send_all;
     int id;
     bool alive;
@@ -146,7 +146,7 @@ private:
 class tcp_server {
 public:
     tcp_server(boost::asio::io_context& io_context, size_t port,
-        Document::Document_handler* dh)
+        Document::Document_handler& dh)
         : io_context_(io_context)
         , acceptor_(io_context, tcp::endpoint(tcp::v4(), port))
         , dh(dh)
@@ -205,10 +205,9 @@ private:
 
     boost::asio::io_context& io_context_;
     tcp::acceptor acceptor_;
-    Document::Document_handler* dh;
+    Document::Document_handler& dh;
     int next_client_id;
 
-    // std::set<Tcp_connection*> connections;
     std::set<boost::weak_ptr<Tcp_connection>> connections;
 };
 
@@ -228,7 +227,7 @@ int main()
     Document::Document_handler dh;
     try {
         boost::asio::io_context io_context;
-        tcp_server server(io_context, 6969, &dh);
+        tcp_server server(io_context, 6969, dh);
         boost::thread t1(&local_loop);
 
         io_context.run();

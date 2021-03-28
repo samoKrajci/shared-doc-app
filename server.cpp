@@ -24,8 +24,6 @@ public:
             io_context, dh, send_all, id) };
     }
 
-    tcp::socket& socket() { return socket_; }
-
     void start()
     {
         // debug output
@@ -44,7 +42,7 @@ public:
         send(ss.str());
 
         // zacne receive loop
-        boost::asio::async_read(socket_,
+        boost::asio::async_read(socket,
             boost::asio::buffer(rec_buff_, DEFAULT_MESSAGE_LENGTH),
             boost::bind(&Tcp_connection::handle_read, this,
                 boost::asio::placeholders::error,
@@ -58,7 +56,7 @@ public:
         if (!is_alive())
             debug_output("Connection not alive. Skipping sending...");
         else
-            boost::asio::async_write(socket_, boost::asio::buffer(message),
+            boost::asio::async_write(socket, boost::asio::buffer(message),
                 boost::bind(&Tcp_connection::handle_write_empty, this,
                     boost::asio::placeholders::error,
                     boost::asio::placeholders::bytes_transferred));
@@ -71,13 +69,18 @@ public:
 
     int get_id() const { return id; }
 
+    Tcp_connection& operator=(const Tcp_connection&)
+        = delete; // nekopirovatelne
+
     ~Tcp_connection() { dh.remove_cursor(id); }
+
+    tcp::socket socket;
 
 private:
     Tcp_connection(boost::asio::io_context& io_context,
         Document::Document_handler& dh,
         std::function<void(std::string)> send_all, int id)
-        : socket_(io_context)
+        : socket(io_context)
         , rec_buff_(std::string(DEFAULT_MESSAGE_LENGTH, ' '))
         , dh(dh)
         , send_all(send_all)
@@ -115,7 +118,7 @@ private:
             send_all(dh.serialize());
 
         // citaj dalsi message (rekurzivne sa loopuje)
-        boost::asio::async_read(socket_,
+        boost::asio::async_read(socket,
             boost::asio::buffer(rec_buff_, DEFAULT_MESSAGE_LENGTH),
             boost::bind(&Tcp_connection::handle_read, this,
                 boost::asio::placeholders::error,
@@ -136,7 +139,6 @@ private:
         std::cout << "[" << id << "] " << message << "\n";
     }
 
-    tcp::socket socket_;
     std::string send_buff_, rec_buff_;
     Document::Document_handler& dh;
     std::function<void(std::string)> send_all;
@@ -148,9 +150,9 @@ private:
     std::mutex mtx;
 };
 
-class tcp_server {
+class Tcp_server {
 public:
-    tcp_server(boost::asio::io_context& io_context, size_t port,
+    Tcp_server(boost::asio::io_context& io_context, size_t port,
         Document::Document_handler& dh)
         : io_context_(io_context)
         , acceptor_(io_context, tcp::endpoint(tcp::v4(), port))
@@ -159,6 +161,8 @@ public:
     {
         start_accept();
     }
+
+    Tcp_server& operator=(const Tcp_server&) = delete; // nekopirovatelne
 
     void send_all(std::string message)
     {
@@ -193,13 +197,12 @@ private:
         // std::unique_ptr<Tcp_connection> up = std::move(new_connection);
         // connections[next_client_id]
         //     = std::make_unique<Tcp_connection>(*new_connection);
-        std::cout << "Number of clients connected: " << connections.size()
-                  << "\n";
+        std::cout << "Number of connections: " << connections.size() << "\n";
 
         ++next_client_id;
 
-        acceptor_.async_accept(new_connection_ref.socket(),
-            boost::bind(&tcp_server::handle_accept, this,
+        acceptor_.async_accept(new_connection_ref.socket,
+            boost::bind(&Tcp_server::handle_accept, this,
                 boost::ref(new_connection_ref),
                 boost::asio::placeholders::error));
     }
@@ -227,7 +230,7 @@ int main()
     Document::Document_handler dh;
     try {
         boost::asio::io_context io_context;
-        tcp_server server(io_context, 6969, dh);
+        Tcp_server server(io_context, 6969, dh);
 
         io_context.run();
     } catch (std::exception& e) {

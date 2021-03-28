@@ -384,28 +384,4 @@ void Document_handler::print()
     std::cout << "--------------------------------\n"
               << serialize() << "--------------------------------\n";
 }
-
-void Document_handler::do_sth()
-{
-    add_new_cursor(0);
-    Cursor& c = cursors.begin()->second;
-    add_new_cursor(1);
-    c.down();
-    c.write('n');
-    c.write('i');
-    c.write('e');
-    c.write('c');
-    c.write('o');
-    c.left();
-    c.left();
-    c.break_line();
-    c.home();
-    c.right();
-    c.down();
-    c.write('x');
-    c.up();
-    c.up();
-    print();
-}
-
 }

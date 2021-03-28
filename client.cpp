@@ -78,8 +78,6 @@ public:
         }
     }
 
-    std::vector<char> get_buffer() { return buff; }
-
     // private:
     boost::asio::io_context io_context;
     tcp::socket socket;

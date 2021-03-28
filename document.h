@@ -103,7 +103,6 @@ public:
 
     // Dev features
     void print();
-    void do_sth();
 };
 
 }

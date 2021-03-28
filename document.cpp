@@ -283,8 +283,6 @@ Document_handler::Document_handler() { }
 
 bool Document_handler::process_message(int cursor_id, std::string message)
 {
-    std::cout << cursor_id << message << "\n";
-
     Cursor* cursor = get_cursor(cursor_id);
     if (cursor == nullptr)
         return false;

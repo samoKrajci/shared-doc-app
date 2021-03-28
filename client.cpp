@@ -182,16 +182,21 @@ struct Window {
             std::string& line = document_image.data.at(line_index);
             for (size_t col = 0; col < line.size() + 1; ++col) {
                 int index_of_cursor_on_this_place = -1;
-                if (!no_cursors_left)
-                    while ((closest_cursor->line == line_index)
-                        and (closest_cursor->column == col)) {
-                        if (index_of_cursor_on_this_place != id)
-                            index_of_cursor_on_this_place = closest_cursor->id;
-                        if (closest_cursor != document_image.cursors.end())
-                            ++closest_cursor;
-                        else
-                            no_cursors_left = true;
-                    }
+                if (!no_cursors_left) {
+                    while (closest_cursor->line < line_index)
+                        ++closest_cursor;
+                    if (closest_cursor != document_image.cursors.end())
+                        while ((closest_cursor->line == line_index)
+                            and (closest_cursor->column == col)) {
+                            if (index_of_cursor_on_this_place != id)
+                                index_of_cursor_on_this_place
+                                    = closest_cursor->id;
+                            if (closest_cursor != document_image.cursors.end())
+                                ++closest_cursor;
+                            else
+                                no_cursors_left = true;
+                        }
+                }
 
                 chtype cursor_attribute
                     = get_cursor_attribute(index_of_cursor_on_this_place, id);

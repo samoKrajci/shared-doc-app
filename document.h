@@ -15,8 +15,8 @@ struct Document {
     Document();
 
     // Document info
-    size_t lines_count();
-    size_t line_length(size_t line);
+    size_t lines_count() const;
+    size_t line_length(size_t line) const;
 
     // Document modification
     void insert_line(size_t line, const std::string& content);

@@ -14,11 +14,12 @@ using boost::asio::ip::tcp;
 struct Tcp_client {
 
 public:
-    Tcp_client(char* address)
+    explicit Tcp_client(const char* address)
         : socket(tcp::socket(io_context))
         , connected(false)
         , address(address)
         , buff(std::vector<char>(MAX_BUFF_LENGTH))
+        , id(-1)
     {
     }
 
@@ -58,8 +59,8 @@ public:
         socket.write_some(boost::asio::buffer(message));
     }
 
-    void receive_loop(
-        std::function<void(std::vector<char>, int)>& handle_received_message)
+    void receive_loop(const std::function<void(std::vector<char>, int)>&
+            handle_received_message)
     {
         boost::system::error_code error;
 
@@ -78,7 +79,7 @@ public:
         }
     }
 
-    // private:
+private:
     boost::asio::io_context io_context;
     tcp::socket socket;
 
@@ -97,7 +98,7 @@ const std::string Tcp_client::PORT = "6969";
 const size_t Tcp_client::MAX_BUFF_LENGTH = 10000;
 
 struct Window {
-    Window(Tcp_client& tcp_client)
+    explicit Window(Tcp_client* tcp_client)
         : tcp_client(tcp_client)
     {
         initscr();
@@ -109,7 +110,7 @@ struct Window {
         init_color_pairs();
     }
 
-    void init_color_pairs()
+    void static init_color_pairs()
     {
         init_pair(1, COLOR_BLACK, COLOR_GREEN);
         init_pair(2, COLOR_BLACK, COLOR_MAGENTA);
@@ -165,7 +166,7 @@ struct Window {
                 break;
             }
 
-            tcp_client.send_message(message);
+            tcp_client->send_message(message);
         }
     }
 
@@ -211,14 +212,14 @@ struct Window {
         refresh();
     }
 
-    chtype get_cursor_attribute(int cursor_id, int my_id)
+    chtype static get_cursor_attribute(int cursor_id, int my_id)
     {
         if (cursor_id == my_id)
             return A_REVERSE;
         return COLOR_PAIR((cursor_id % 5) + 1);
     }
 
-    void printw_buff(std::vector<char> buff, int id)
+    void printw_buff(const std::vector<char>& buff, int id)
     {
         std::stringstream ss;
         ss.write(buff.data(), buff.size());
@@ -227,7 +228,8 @@ struct Window {
         print_document_image(document_image, id);
     }
 
-    Tcp_client& tcp_client;
+private:
+    Tcp_client* tcp_client;
 };
 
 int main(int argc, char* argv[])
@@ -242,10 +244,10 @@ int main(int argc, char* argv[])
         if (!tcp_client.connect())
             return 1;
 
-        Window window(tcp_client);
+        Window window(&tcp_client);
 
         std::function<void(std::vector<char>, int)> f
-            = [&window](std::vector<char> buff, int id) {
+            = [&window](const std::vector<char>& buff, int id) {
                   window.printw_buff(buff, id);
               };
         boost::thread t1(

@@ -18,7 +18,7 @@ public:
 
     static std::unique_ptr<Tcp_connection> create(
         boost::asio::io_context& io_context,
-        std::function<void(std::string)> send_all, int id)
+        const std::function<void(std::string)>& send_all, int id)
     {
         return std::unique_ptr<Tcp_connection> { new Tcp_connection(
             io_context, send_all, id) };
@@ -78,7 +78,7 @@ public:
 
 private:
     Tcp_connection(boost::asio::io_context& io_context,
-        std::function<void(std::string)> send_all, int id)
+        const std::function<void(std::string)>& send_all, int id)
         : socket(io_context)
         , rec_buff_(std::string(DEFAULT_MESSAGE_LENGTH, ' '))
         , send_all(send_all)
@@ -133,7 +133,7 @@ private:
         debug_output(error.message());
     }
 
-    void debug_output(std::string message)
+    void debug_output(const std::string& message) const
     {
         std::cout << "[" << id << "] " << message << "\n";
     }
@@ -160,7 +160,7 @@ public:
 
     Tcp_server& operator=(const Tcp_server&) = delete; // nekopirovatelne
 
-    void send_all(std::string message)
+    void send_all(const std::string& message)
     {
         auto it = connections.begin();
         while (it != connections.end()) {
@@ -178,14 +178,13 @@ private:
     {
         std::cout << "Start accept\n";
 
-        auto myself = this;
         // Tcp_connection::pointer new_connection = Tcp_connection::create(
         //     io_context_, dh,
         //     [myself](std::string message) { myself->send_all(message); },
         //     next_client_id);
         connections[next_client_id] = Tcp_connection::create(
             io_context_,
-            [myself](std::string message) { myself->send_all(message); },
+            [this](const std::string& message) { this->send_all(message); },
             next_client_id);
 
         Tcp_connection& new_connection_ref = *connections[next_client_id];

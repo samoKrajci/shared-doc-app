@@ -14,14 +14,11 @@ Document::Document()
 {
 }
 
-size_t Document::lines_count() { return data.size(); }
+size_t Document::lines_count() const { return data.size(); }
 
-size_t Document::line_length(size_t line)
+size_t Document::line_length(size_t line) const
 {
-    if (line >= lines_count())
-        return 0;
-    else
-        return data[line].length();
+    return (line >= lines_count()) ? 0 : data[line].length();
 }
 
 void Document::insert_line(size_t line, const std::string& content = "")
@@ -108,10 +105,9 @@ void Cursor::sync_with_document()
     if (line >= document->lines_count())
         return set(document->lines_count() - 1,
             document->line_length(document->lines_count() - 1));
-    else {
-        size_t new_column = std::min(column, document->line_length(line));
-        set(line, new_column);
-    }
+
+    size_t new_column = std::min(column, document->line_length(line));
+    set(line, new_column);
 }
 
 void Cursor::home()
@@ -207,7 +203,12 @@ void Cursor::tab()
     }
 }
 
-Cursor_image::Cursor_image() { }
+Cursor_image::Cursor_image()
+    : line(0)
+    , column(0)
+    , id(-1)
+{
+}
 
 Cursor_image::Cursor_image(size_t line, size_t column, size_t id)
     : line(line)
@@ -223,7 +224,7 @@ bool Cursor_image::operator<(const Cursor_image& other)
     return line < other.line;
 }
 
-Document_image::Document_image() { }
+Document_image::Document_image() = default;
 
 // Regular constructor, serializes the object
 Document_image::Document_image(const std::vector<std::string>& data,
@@ -353,8 +354,8 @@ Cursor* Document_handler::get_cursor(int cursor_id)
     if (cursors.find(cursor_id) == cursors.end()) {
         std::cerr << "Cursor with such id does not exist.\n";
         return nullptr;
-    } else
-        return std::addressof(cursors.at(cursor_id));
+    }
+    return std::addressof(cursors.at(cursor_id));
 }
 
 Document_image Document_handler::get_document_image()

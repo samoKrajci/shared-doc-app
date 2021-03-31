@@ -14,8 +14,6 @@ Document::Document()
 {
 }
 
-const std::vector<std::string> Document::get_data() const { return data; }
-
 size_t Document::lines_count() { return data.size(); }
 
 size_t Document::line_length(size_t line)
@@ -371,7 +369,7 @@ Document_image Document_handler::get_document_image() const
         ++i;
     }
 
-    return Document_image(document.get_data(), cursor_images);
+    return Document_image(document.data, cursor_images);
 }
 
 std::string Document_handler::serialize() const

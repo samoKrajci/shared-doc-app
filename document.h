@@ -10,14 +10,11 @@
 namespace Document {
 
 struct Document {
-private:
     std::vector<std::string> data;
 
-public:
     Document();
 
     // Document info
-    const std::vector<std::string> get_data() const;
     size_t lines_count();
     size_t line_length(size_t line);
 
@@ -98,8 +95,7 @@ public:
 
     // Serialization
     Document_image get_document_image() const;
-    std::string
-    serialize() const; // toto je dost useless, asi to neskor vymazem
+    std::string serialize() const;
 
     // Dev features
     void print();

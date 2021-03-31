@@ -17,11 +17,11 @@ public:
     // typedef boost::shared_ptr<Tcp_connection> pointer;
 
     static std::unique_ptr<Tcp_connection> create(
-        boost::asio::io_context& io_context, Document::Document_handler& dh,
+        boost::asio::io_context& io_context,
         std::function<void(std::string)> send_all, int id)
     {
         return std::unique_ptr<Tcp_connection> { new Tcp_connection(
-            io_context, dh, send_all, id) };
+            io_context, send_all, id) };
     }
 
     void start()
@@ -30,7 +30,7 @@ public:
         debug_output("Client connected");
 
         // prida cursor do dokumentu
-        dh.add_new_cursor(id);
+        Document::Document_handler::add_new_cursor(id);
 
         // connection je up, da sa posielat
         alive = true;
@@ -72,17 +72,15 @@ public:
     Tcp_connection& operator=(const Tcp_connection&)
         = delete; // nekopirovatelne
 
-    ~Tcp_connection() { dh.remove_cursor(id); }
+    ~Tcp_connection() { Document::Document_handler::remove_cursor(id); }
 
     tcp::socket socket;
 
 private:
     Tcp_connection(boost::asio::io_context& io_context,
-        Document::Document_handler& dh,
         std::function<void(std::string)> send_all, int id)
         : socket(io_context)
         , rec_buff_(std::string(DEFAULT_MESSAGE_LENGTH, ' '))
-        , dh(dh)
         , send_all(send_all)
         , id(id)
         , alive(false)
@@ -109,13 +107,14 @@ private:
         //  broadcaste
         bool message_valid = true;
         if (rec_buff_ != "DD")
-            message_valid = dh.process_message(id, rec_buff_);
+            message_valid
+                = Document::Document_handler::process_message(id, rec_buff_);
         // debug vec
-        dh.print();
+        Document::Document_handler::print();
 
         // broadcastni stav dokumentu
         if (message_valid)
-            send_all(dh.serialize());
+            send_all(Document::Document_handler::serialize());
 
         // citaj dalsi message (rekurzivne sa loopuje)
         boost::asio::async_read(socket,
@@ -140,7 +139,6 @@ private:
     }
 
     std::string send_buff_, rec_buff_;
-    Document::Document_handler& dh;
     std::function<void(std::string)> send_all;
     int id;
     bool alive;
@@ -152,11 +150,9 @@ private:
 
 class Tcp_server {
 public:
-    Tcp_server(boost::asio::io_context& io_context, size_t port,
-        Document::Document_handler& dh)
+    Tcp_server(boost::asio::io_context& io_context, size_t port)
         : io_context_(io_context)
         , acceptor_(io_context, tcp::endpoint(tcp::v4(), port))
-        , dh(dh)
         , next_client_id(0)
     {
         start_accept();
@@ -188,7 +184,7 @@ private:
         //     [myself](std::string message) { myself->send_all(message); },
         //     next_client_id);
         connections[next_client_id] = Tcp_connection::create(
-            io_context_, dh,
+            io_context_,
             [myself](std::string message) { myself->send_all(message); },
             next_client_id);
 
@@ -219,7 +215,6 @@ private:
 
     boost::asio::io_context& io_context_;
     tcp::acceptor acceptor_;
-    Document::Document_handler& dh;
     int next_client_id;
 
     std::map<int, std::unique_ptr<Tcp_connection>> connections;
@@ -227,10 +222,9 @@ private:
 
 int main()
 {
-    Document::Document_handler dh;
     try {
         boost::asio::io_context io_context;
-        Tcp_server server(io_context, 6969, dh);
+        Tcp_server server(io_context, 6969);
 
         io_context.run();
     } catch (std::exception& e) {

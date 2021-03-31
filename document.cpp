@@ -277,8 +277,6 @@ void Document_image::sort_cursors()
     std::sort(cursors.begin(), cursors.end());
 }
 
-Document_handler::Document_handler() { }
-
 bool Document_handler::process_message(int cursor_id, std::string message)
 {
     Cursor* cursor = get_cursor(cursor_id);
@@ -359,7 +357,7 @@ Cursor* Document_handler::get_cursor(int cursor_id)
         return std::addressof(cursors.at(cursor_id));
 }
 
-Document_image Document_handler::get_document_image() const
+Document_image Document_handler::get_document_image()
 {
     std::vector<Cursor_image> cursor_images(cursors.size());
     size_t i = 0;
@@ -372,7 +370,7 @@ Document_image Document_handler::get_document_image() const
     return Document_image(document.data, cursor_images);
 }
 
-std::string Document_handler::serialize() const
+std::string Document_handler::serialize()
 {
     return get_document_image().serialized_object;
 }

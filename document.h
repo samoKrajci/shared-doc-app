@@ -76,14 +76,10 @@ struct Document_image {
     std::string serialized_object;
 };
 
-struct Document_handler {
-private:
-    Document document;
-    std::map<int, Cursor> cursors;
-    std::mutex mtx;
-
-public:
-    Document_handler();
+namespace Document_handler {
+    static Document document;
+    static std::map<int, Cursor> cursors;
+    static std::mutex mtx;
 
     // API
     bool process_message(int cursor_id, std::string message);
@@ -94,12 +90,12 @@ public:
     Cursor* get_cursor(int cursor_id);
 
     // Serialization
-    Document_image get_document_image() const;
-    std::string serialize() const;
+    Document_image get_document_image();
+    std::string serialize();
 
     // Dev features
     void print();
-};
+}
 
 }
 
